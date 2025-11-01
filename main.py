@@ -12,6 +12,7 @@ import json
 from flask import Flask, request, jsonify
 import threading
 import time
+import sys
 
 # Configure logging
 logging.basicConfig(
@@ -26,11 +27,11 @@ app = Flask(__name__)
 # Bot Configuration
 BOT_TOKEN = "7312642236:AAHlMXH8xBwg83uMkmzk43c6Ou6tmN2Sc5E"
 CHANNELS = ["@anshapi", "@revangeosint"]
-ADMIN_IDS = [6258915779]  # Replace with your Telegram ID
+ADMIN_IDS = [6258915779]
 
 # Database setup
 def init_db():
-    conn = sqlite3.connect('bot_data.db')
+    conn = sqlite3.connect('bot_data.db', check_same_thread=False)
     c = conn.cursor()
     
     # Users table
@@ -68,7 +69,7 @@ init_db()
 class DatabaseManager:
     @staticmethod
     def get_user(user_id):
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         c.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
         user = c.fetchone()
@@ -77,7 +78,7 @@ class DatabaseManager:
 
     @staticmethod
     def create_user(user_id, username, first_name, referred_by=None):
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         try:
             c.execute('''INSERT OR IGNORE INTO users 
@@ -109,7 +110,7 @@ class DatabaseManager:
 
     @staticmethod
     def update_credits(user_id, credits_change, reason, admin_id=0):
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         try:
             c.execute('''UPDATE users SET credits = credits + ? 
@@ -138,7 +139,7 @@ class DatabaseManager:
 
     @staticmethod
     def ban_user(user_id, admin_id):
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         c.execute("UPDATE users SET is_banned = 1 WHERE user_id = ?", (user_id,))
         conn.commit()
@@ -146,7 +147,7 @@ class DatabaseManager:
 
     @staticmethod
     def unban_user(user_id, admin_id):
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         c.execute("UPDATE users SET is_banned = 0 WHERE user_id = ?", (user_id,))
         conn.commit()
@@ -154,7 +155,7 @@ class DatabaseManager:
 
     @staticmethod
     def get_all_users():
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         c.execute("SELECT * FROM users")
         users = c.fetchall()
@@ -163,7 +164,7 @@ class DatabaseManager:
 
     @staticmethod
     def get_referral_stats(user_id):
-        conn = sqlite3.connect('bot_data.db')
+        conn = sqlite3.connect('bot_data.db', check_same_thread=False)
         c = conn.cursor()
         c.execute("SELECT COUNT(*) FROM referrals WHERE referrer_id = ?", (user_id,))
         total_refs = c.fetchone()[0]
@@ -211,116 +212,138 @@ class APIServices:
             logger.error(f"Vehicle lookup error: {e}")
             return None
 
-# Flask Routes
+# Flask Routes with error handling
 @app.route('/')
 def home():
-    return """
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>OSINT Bot Server</title>
-        <style>
-            body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-            .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-            h1 { color: #333; border-bottom: 2px solid #007cba; padding-bottom: 10px; }
-            .status { background: #28a745; color: white; padding: 10px; border-radius: 5px; text-align: center; }
-            .info { background: #17a2b8; color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h1>🤖 OSINT Investigation Bot Server</h1>
-            <div class="status">
-                <h2>🟢 SERVER IS RUNNING</h2>
+    try:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>OSINT Bot Server</title>
+            <style>
+                body {{ font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }}
+                .container {{ max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
+                h1 {{ color: #333; border-bottom: 2px solid #007cba; padding-bottom: 10px; }}
+                .status {{ background: #28a745; color: white; padding: 10px; border-radius: 5px; text-align: center; }}
+                .info {{ background: #17a2b8; color: white; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                .endpoints {{ background: #f8f9fa; padding: 15px; border-radius: 5px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🤖 OSINT Investigation Bot Server</h1>
+                <div class="status">
+                    <h2>🟢 SERVER IS RUNNING</h2>
+                </div>
+                <div class="info">
+                    <h3>📊 Server Information</h3>
+                    <p><strong>Status:</strong> Active & Running</p>
+                    <p><strong>Services:</strong> Phone Lookup, UPI Info, Aadhaar Family, Vehicle RC</p>
+                    <p><strong>Start Time:</strong> {current_time}</p>
+                    <p><strong>Port:</strong> 5000</p>
+                </div>
+                <div class="endpoints">
+                    <h3>🔗 Available Endpoints:</h3>
+                    <ul>
+                        <li><code>GET /</code> - This status page</li>
+                        <li><code>GET /health</code> - Health check</li>
+                        <li><code>GET /stats</code> - Bot statistics</li>
+                        <li><code>GET /users?admin_key=YOUR_KEY</code> - User list (Admin)</li>
+                        <li><code>POST /admin/add_credits</code> - Add credits to user</li>
+                    </ul>
+                </div>
             </div>
-            <div class="info">
-                <h3>📊 Server Information</h3>
-                <p><strong>Status:</strong> Active & Running</p>
-                <p><strong>Services:</strong> Phone Lookup, UPI Info, Aadhaar Family, Vehicle RC</p>
-                <p><strong>Start Time:</strong> {}</p>
-                <p><strong>Port:</strong> 5000</p>
-            </div>
-            <h3>🔗 Available Endpoints:</h3>
-            <ul>
-                <li><code>GET /</code> - This status page</li>
-                <li><code>GET /health</code> - Health check</li>
-                <li><code>GET /stats</code> - Bot statistics</li>
-                <li><code>GET /users</code> - User list (Admin)</li>
-                <li><code>POST /admin/add_credits</code> - Add credits to user</li>
-            </ul>
-        </div>
-    </body>
-    </html>
-    """.format(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+        </body>
+        </html>
+        """
+    except Exception as e:
+        logger.error(f"Error in home route: {e}")
+        return "Server is running but encountered an error in home route."
 
 @app.route('/health')
 def health_check():
-    return jsonify({
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "osint-bot-server",
-        "version": "1.0.0"
-    })
+    try:
+        return jsonify({
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "service": "osint-bot-server",
+            "version": "1.0.0"
+        })
+    except Exception as e:
+        logger.error(f"Error in health check: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/stats')
 def get_stats():
-    users = DatabaseManager.get_all_users()
-    total_users = len(users)
-    total_credits = sum(user[3] for user in users)
-    active_users = len([u for u in users if not u[5]])
-    
-    return jsonify({
-        "total_users": total_users,
-        "active_users": active_users,
-        "banned_users": total_users - active_users,
-        "total_credits": total_credits,
-        "services_available": 4,
-        "server_status": "running",
-        "last_updated": datetime.now().isoformat()
-    })
+    try:
+        users = DatabaseManager.get_all_users()
+        total_users = len(users)
+        total_credits = sum(user[3] for user in users)
+        active_users = len([u for u in users if not u[5]])
+        
+        return jsonify({
+            "total_users": total_users,
+            "active_users": active_users,
+            "banned_users": total_users - active_users,
+            "total_credits": total_credits,
+            "services_available": 4,
+            "server_status": "running",
+            "last_updated": datetime.now().isoformat()
+        })
+    except Exception as e:
+        logger.error(f"Error in stats route: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/users')
 def get_users():
-    # Simple authentication (you might want to enhance this)
-    admin_key = request.args.get('admin_key')
-    if not admin_key or admin_key != "your_secret_admin_key_here":  # Change this
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    users = DatabaseManager.get_all_users()
-    user_list = []
-    
-    for user in users:
-        user_list.append({
-            "user_id": user[0],
-            "username": user[1],
-            "first_name": user[2],
-            "credits": user[3],
-            "is_banned": bool(user[5]),
-            "join_date": user[6]
+    try:
+        # Simple authentication
+        admin_key = request.args.get('admin_key')
+        if not admin_key or admin_key != "your_secret_admin_key_here":
+            return jsonify({"error": "Unauthorized"}), 401
+        
+        users = DatabaseManager.get_all_users()
+        user_list = []
+        
+        for user in users:
+            user_list.append({
+                "user_id": user[0],
+                "username": user[1],
+                "first_name": user[2],
+                "credits": user[3],
+                "is_banned": bool(user[5]),
+                "join_date": user[6]
+            })
+        
+        return jsonify({
+            "total_users": len(users),
+            "users": user_list
         })
-    
-    return jsonify({
-        "total_users": len(users),
-        "users": user_list
-    })
+    except Exception as e:
+        logger.error(f"Error in users route: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/admin/add_credits', methods=['POST'])
 def admin_add_credits():
-    data = request.get_json()
-    
-    # Authentication
-    admin_key = data.get('admin_key')
-    if not admin_key or admin_key != "your_secret_admin_key_here":  # Change this
-        return jsonify({"error": "Unauthorized"}), 401
-    
-    user_id = data.get('user_id')
-    amount = data.get('amount')
-    reason = data.get('reason', 'Admin API')
-    
-    if not user_id or not amount:
-        return jsonify({"error": "Missing user_id or amount"}), 400
-    
     try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        # Authentication
+        admin_key = data.get('admin_key')
+        if not admin_key or admin_key != "your_secret_admin_key_here":
+            return jsonify({"error": "Unauthorized"}), 401
+        
+        user_id = data.get('user_id')
+        amount = data.get('amount')
+        reason = data.get('reason', 'Admin API')
+        
+        if not user_id or not amount:
+            return jsonify({"error": "Missing user_id or amount"}), 400
+        
         DatabaseManager.update_credits(int(user_id), int(amount), reason, 0)
         return jsonify({
             "success": True,
@@ -328,11 +351,26 @@ def admin_add_credits():
             "new_balance": DatabaseManager.get_user_credits(int(user_id))
         })
     except Exception as e:
+        logger.error(f"Error in add_credits route: {e}")
         return jsonify({"error": str(e)}), 500
 
-def run_flask():
-    app.run(host='0.0.0.0', port=5000, debug=False)
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({"error": "Endpoint not found"}), 404
 
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({"error": "Internal server error"}), 500
+
+def run_flask():
+    """Run Flask server in a separate thread"""
+    try:
+        print("🌐 Starting Flask server on port 5000...")
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+    except Exception as e:
+        print(f"❌ Flask server error: {e}")
+
+# Telegram Bot Functions (same as before)
 async def check_channel_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     not_joined = []
@@ -353,12 +391,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.effective_user.username
     first_name = update.effective_user.first_name
     
-    # Check if user is banned
     if DatabaseManager.is_user_banned(user_id):
         await update.message.reply_text("🚫 <b>You are banned from using this bot.</b>", parse_mode=ParseMode.HTML)
         return
     
-    # Handle referral
     referred_by = None
     if context.args:
         try:
@@ -368,7 +404,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             referred_by = None
     
-    # Create user in database
     DatabaseManager.create_user(user_id, username, first_name, referred_by)
     
     not_joined = await check_channel_membership(update, context)
@@ -409,7 +444,6 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
          InlineKeyboardButton("ℹ️ Help", callback_data="help")]
     ]
     
-    # Add admin panel for admins
     if user_id in ADMIN_IDS:
         keyboard.append([InlineKeyboardButton("👑 Admin Panel", callback_data="admin_panel")])
     
@@ -441,7 +475,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     user_id = query.from_user.id
     
-    # Check if user is banned
     if DatabaseManager.is_user_banned(user_id):
         await query.message.edit_text("🚫 <b>You are banned from using this bot.</b>", parse_mode=ParseMode.HTML)
         return
@@ -469,7 +502,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(
             "💳 <b>UPI INFORMATION LOOKUP</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
             "🔍 Enter the UPI ID (username@bank):\n\n"
-            "<code>Example: ansh@upi</code>",
+            "<code>Example: ansh735@ptyes</code>",
             parse_mode=ParseMode.HTML
         )
         context.user_data['awaiting_input'] = 'upi'
@@ -820,7 +853,7 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 2. <b>UPI Info</b>  
    - Format: username@bank
-   - Example: <code>ansh@upi</code>
+   - Example: <code>ansh735@ptyes</code>
    - Returns: Bank, Branch, IFSC
 
 3. <b>Aadhaar Family</b>
@@ -848,12 +881,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = update.message.text.strip()
     user_id = update.effective_user.id
     
-    # Check if user is banned
     if DatabaseManager.is_user_banned(user_id):
         await update.message.reply_text("🚫 <b>You are banned from using this bot.</b>", parse_mode=ParseMode.HTML)
         return
     
-    # Check channel membership first
     not_joined = await check_channel_membership(update, context)
     if not_joined:
         await update.message.reply_text("❌ Please join the required channels first using /start")
@@ -866,7 +897,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     service_type = user_data['awaiting_input']
     user_data.pop('awaiting_input', None)
     
-    # Send processing message
     processing_msg = await update.message.reply_text("🔄 <b>Processing Request...</b>\n\n⏳ Please wait while we fetch the data...", parse_mode=ParseMode.HTML)
     
     try:
@@ -900,14 +930,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = await APIServices.vehicle_lookup(message_text.upper())
             response_text = format_vehicle_result(result, message_text)
         
-        # Auto-delete processing message and send result
         await processing_msg.delete()
         
         if result and response_text:
             keyboard = [[InlineKeyboardButton("🔄 New Search", callback_data="back_to_menu")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            # Split long messages if needed
             if len(response_text) > 4096:
                 for i in range(0, len(response_text), 4096):
                     chunk = response_text[i:i + 4096]
@@ -1073,36 +1101,43 @@ async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.error(f"Error: {context.error}")
 
 def run_bot():
-    application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Add handlers
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("ban", ban_user))
-    application.add_handler(CommandHandler("unban", unban_user))
-    application.add_handler(CommandHandler("addcredits", add_credits))
-    application.add_handler(CommandHandler("removecredits", remove_credits))
-    application.add_handler(CallbackQueryHandler(button_handler))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    application.add_error_handler(error_handler)
-    
-    # Start the bot
-    print("🤖 OSINT Bot is running...")
-    print("🔍 Professional OSINT Investigation Suite")
-    print("💰 Credit & Referral System: ACTIVE")
-    print("👑 Admin Panel: ENABLED")
-    print("🌐 Flask Server: RUNNING on port 5000")
-    application.run_polling()
+    """Run Telegram bot"""
+    try:
+        application = Application.builder().token(BOT_TOKEN).build()
+        
+        # Add handlers
+        application.add_handler(CommandHandler("start", start))
+        application.add_handler(CommandHandler("ban", ban_user))
+        application.add_handler(CommandHandler("unban", unban_user))
+        application.add_handler(CommandHandler("addcredits", add_credits))
+        application.add_handler(CommandHandler("removecredits", remove_credits))
+        application.add_handler(CallbackQueryHandler(button_handler))
+        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+        application.add_error_handler(error_handler)
+        
+        print("🤖 OSINT Bot is running...")
+        print("🔍 Professional OSINT Investigation Suite")
+        print("💰 Credit & Referral System: ACTIVE")
+        print("👑 Admin Panel: ENABLED")
+        print("🌐 Flask Server: RUNNING on port 5000")
+        
+        application.run_polling()
+    except Exception as e:
+        print(f"❌ Bot error: {e}")
 
 def main():
+    """Main function to start both services"""
+    print("🚀 Starting OSINT Bot with Flask Server...")
+    
     # Start Flask server in a separate thread
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     
-    # Give Flask a moment to start
-    time.sleep(2)
+    print("⏳ Waiting for Flask server to start...")
+    time.sleep(3)  # Give Flask time to start
     
-    # Start the Telegram bot
+    # Start the Telegram bot in the main thread
+    print("📱 Starting Telegram Bot...")
     run_bot()
 
 if __name__ == '__main__':
