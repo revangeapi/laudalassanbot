@@ -502,7 +502,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.edit_text(
             "💳 <b>UPI INFORMATION LOOKUP</b>\n━━━━━━━━━━━━━━━━━━━━\n\n"
             "🔍 Enter the UPI ID (username@bank):\n\n"
-            "<code>Example: ansh735@ptyes</code>",
+            "<code>Example: ansh@upi</code>",
             parse_mode=ParseMode.HTML
         )
         context.user_data['awaiting_input'] = 'upi'
@@ -853,7 +853,7 @@ async def show_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 2. <b>UPI Info</b>  
    - Format: username@bank
-   - Example: <code>ansh735@ptyes</code>
+   - Example: <code>ansh@upi</code>
    - Returns: Bank, Branch, IFSC
 
 3. <b>Aadhaar Family</b>
